@@ -29,7 +29,7 @@ api.interceptors.response.use(
 
     // nhưng api không cần thiết
     if (
-      originalRequest.url.includes("/auth/sigin") ||
+      originalRequest.url.includes("/auth/signin") ||
       originalRequest.url.includes("/auth/signup") ||
       originalRequest.url.includes("/auth/refresh")
     ) {
