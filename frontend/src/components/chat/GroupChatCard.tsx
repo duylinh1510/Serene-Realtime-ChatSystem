@@ -2,6 +2,8 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useChatStore } from "@/stores/useChatStore";
 import type { Conversation } from "@/types/chat";
 import ChatCard from "./ChatCard";
+import UnreadCountBadge from "./UnreadCountBadge";
+import GroupChatAvatar from "./GroupChatAvatar";
 
 const GroupChatCard = ({ convo }: { convo: Conversation }) => {
   const { user } = useAuthStore();
@@ -32,7 +34,12 @@ const GroupChatCard = ({ convo }: { convo: Conversation }) => {
         isActive={activeConversationId === convo._id}
         onSelect={handleSelectConversation}
         unreadCount={unreadCount}
-        leftSection={<></>}
+        leftSection={
+          <>
+            {unreadCount > 0 && <UnreadCountBadge unreadCount={unreadCount} />}
+            <GroupChatAvatar participants={convo.participants} type="chat" />
+          </>
+        }
         subtitle={
           <p className="text-sm truncate text-muted-foreground">
             {convo.participants.length} thành viên
