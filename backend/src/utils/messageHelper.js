@@ -18,3 +18,23 @@ export const updateConversationAfterCreateMessage = (conversation, message, send
         conversation.unreadCounts.set(memberId, isSender ? 0 : prevCount + 1)
     })
 }
+
+
+
+// Khi user gửi một tin nhắn mới, backend sẽ:
+// 1. Lưu message vào database
+// 2. Cập nhật conversation.lastMessage
+// 3. Cập nhật conversation.lastMessageAt
+// 4. Cập nhật unreadCounts
+// 5. Emit sự kiện "new-message" cho các user trong conversation
+export const emitNewMessage = (io, conversation, message) => {
+    io.to(conversation._id.toString()).emit("new-message", {
+        message,
+        conversation: {
+            _id: conversation._id,
+            lastMessage: conversation.lastMessage,
+            lastMessageAt: conversation.lastMessageAt,
+        },
+        unreadCounts: conversation.unreadCounts
+    });
+};

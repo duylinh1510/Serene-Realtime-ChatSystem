@@ -113,6 +113,59 @@ export const useChatStore = create<ChatState>()(
           console.error("Error while sending group message");
         }
       },
+      addMessage: async (message) => {
+        try {
+          // Lấy user đang đăng nhập.
+          const { user } = useAuthStore.getState();
+          const { fetchMessages } = get();
+
+          // Gắn isOwn cho message:
+          // Nếu message do user hiện tại gửi thì isOwn = true,
+          // để UI render bên phải và dùng style của tin nhắn mình gửi
+          message.isOwn = message.senderId === user?._id;
+
+          //Lấy conversationId từ message
+          const convoId = message.conversationId;
+
+          //Lấy danh sách message hiện tại của conversation đó
+          let prevItems = get().messages[convoId]?.items ?? [];
+
+          // Nếu conversation này chưa có message trong store thì
+          // fetch lịch sử message trước, rồi mới thêm message mới vào.
+          // Việc này giúp khi socket bắn message cho conversation chưa mở/chưa load thì store vẫn có data nền.
+          if (prevItems.length === 0) {
+            await fetchMessages(message.conversationId);
+            prevItems = get().messages[convoId]?.items ?? [];
+          }
+
+          // Nếu message đã tồn tại thì không thêm nữa.
+          set((state) => {
+            if (prevItems.some((m) => m._id === message._id)) {
+              return state;
+            }
+
+            return {
+              messages: {
+                ...state.messages,
+                [convoId]: {
+                  items: [...prevItems, message],
+                  hasMore: state.messages[convoId]?.hasMore ?? false,
+                  nextCursor: state.messages[convoId]?.nextCursor ?? null,
+                },
+              },
+            };
+          });
+        } catch (error) {
+          console.error("Error while adding messages", error);
+        }
+      },
+      updateConversation: (conversation) => {
+        set((state) => ({
+          conversations: state.conversations.map((c) =>
+            c._id === conversation._id ? { ...c, ...conversation } : c,
+          ),
+        }));
+      },
     }),
     {
       name: "chat-storage",
