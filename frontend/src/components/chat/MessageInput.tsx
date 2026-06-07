@@ -13,6 +13,8 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
   const { user } = useAuthStore();
   const { sendDirectMessage, sendGroupMessage } = useChatStore();
   const [value, setValue] = useState("");
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { socket } = useSocketStore();
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -50,10 +52,18 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
   if (!user) return;
 
   const sendMessage = async () => {
-    if (!value.trim()) return;
+    if (!value.trim() && !selectedImage) return;
     const currValue = value;
+    const currImage = selectedImage;
+
     setValue("");
+    setSelectedImage(null);
     emitTypingStop();
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
@@ -63,9 +73,9 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
         const participants = selectedConvo.participants;
         const otherUser = participants.filter((p) => p._id !== user._id)[0];
 
-        await sendDirectMessage(otherUser._id, currValue);
+        await sendDirectMessage(otherUser._id, currValue, currImage);
       } else {
-        await sendGroupMessage(selectedConvo._id, currValue);
+        await sendGroupMessage(selectedConvo._id, currValue, currImage);
       }
     } catch (error) {
       console.error(error);
@@ -100,45 +110,97 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
     }, 1500);
   };
 
+  const handleSelectImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Vui lòng chọn file ảnh");
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      toast.error("Ảnh không được vượt quá 5MB");
+      return;
+    }
+
+    setSelectedImage(file);
+  };
+
   return (
-    <div className="flex items-center gap-2 p-3 min-h-[56px] bg-background">
-      <Button
-        variant={"ghost"}
-        size="icon"
-        className="hover:bg-primary/10 transition-smooth"
-      ></Button>
-      <div className="flex-1 relative">
-        <Input
-          onKeyPress={handleKeyPress}
-          value={value}
-          onChange={handleInputChange}
-          placeholder="Soạn tin nhắn"
-          className="pr-20 h-9 bg-white border-border/50 focus:border-primary/50 transition-smooth resize-none"
-        ></Input>
-        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+    <>
+      {selectedImage && (
+        <div className="px-3 py-2 text-xs text-muted-foreground bg-background border-t">
+          Đã chọn: {selectedImage.name}
           <Button
-            asChild
-            variant="ghost"
-            size={"icon"}
-            className="size-8 hover:bg-primary/10 transition-smooth"
+            type="button"
+            variant={"ghost"}
+            size={"sm"}
+            onClick={() => {
+              setSelectedImage(null);
+              if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+              }
+            }}
+            className="ml-2 h-6 px-2"
           >
-            <div>
-              <EmojiPicker
-                onChange={(emoji: string) => setValue(`${value}${emoji}`)}
-              />
-            </div>
+            Xóa
           </Button>
         </div>
+      )}
+      <div className="flex items-center gap-2 p-3 min-h-[56px] bg-background">
+        <Button
+          type="button"
+          variant={"ghost"}
+          size="icon"
+          onClick={() => fileInputRef.current?.click()}
+          className="hover:bg-primary/10 transition-smooth"
+        >
+          <ImagePlusIcon className="size-4" />
+        </Button>
+        <div className="flex-1 relative">
+          <Input
+            onKeyPress={handleKeyPress}
+            value={value}
+            onChange={handleInputChange}
+            placeholder="Soạn tin nhắn"
+            className="pr-20 h-9 bg-white border-border/50 focus:border-primary/50 transition-smooth resize-none"
+          ></Input>
+          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+            <Button
+              asChild
+              variant="ghost"
+              size={"icon"}
+              className="size-8 hover:bg-primary/10 transition-smooth"
+            >
+              <div>
+                <EmojiPicker
+                  onChange={(emoji: string) => setValue(`${value}${emoji}`)}
+                />
+              </div>
+            </Button>
+          </div>
+        </div>
+        <Button
+          onClick={sendMessage}
+          className="bg-gradient-chat hover:shadow-glow transition-smooth hover:scale-105"
+          disabled={!value.trim() && !selectedImage}
+        >
+          <Send className="size-4 text-white" />
+        </Button>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={handleSelectImage}
+        />
       </div>
-      <Button
-        onClick={sendMessage}
-        className="bg-gradient-chat hover:shadow-glow transition-smooth hover:scale-105"
-        disabled={!value.trim()}
-      >
-        <Send className="size-4 text-white" />
-      </Button>
-      <ImagePlusIcon className="size-4" />
-    </div>
+    </>
   );
 };
 

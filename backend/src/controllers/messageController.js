@@ -3,14 +3,29 @@ import Message from '../models/Message.js';
 import { io } from '../socket/index.js';
 import { emitNewMessage, updateConversationAfterCreateMessage } from '../utils/messageHelper.js';
 import mongoose from 'mongoose';
+import { uploadImageFromBuffer } from '../middlewares/uploadMiddleware.js';
 
 export const sendDirectMessage = async (req, res) => {
     try {
-        const { recipientId, content, conversationId } = req.body;
+        const { recipientId, content = "", conversationId } = req.body;
         const senderId = req.user._id;
+        const file = req.file;
 
-        if (!content) {
-            return res.status(400).json({ message: "No content provided" })
+        let imgUrl = null;
+
+        if (file) {
+            const result = await uploadImageFromBuffer(file.buffer, {
+                folder: "serene_chat/messages",
+                transformation: [
+                    { quality: "auto", fetch_format: "auto" }
+                ],
+            });
+
+            imgUrl = result.secure_url;
+        }
+
+        if (!content.trim() && !imgUrl) {
+            return res.status(400).json({ message: "Message content or image is required" })
         }
 
         let conversation;
@@ -50,7 +65,8 @@ export const sendDirectMessage = async (req, res) => {
         const message = await Message.create({
             conversationId: conversation._id,
             senderId,
-            content
+            content: content.trim(),
+            imgUrl
         });
 
         updateConversationAfterCreateMessage(conversation, message, senderId);
@@ -68,12 +84,26 @@ export const sendDirectMessage = async (req, res) => {
 
 export const sendGroupMessage = async (req, res) => {
     try {
-        const { conversationId, content } = req.body;
+        const { conversationId, content = "" } = req.body;
         const senderId = req.user._id;
         const conversation = req.conversation;
+        const file = req.file;
 
-        if (!content) {
-            return res.status(400).json({ message: "No content provided" })
+        let imgUrl = null;
+
+        if (file) {
+            const result = await uploadImageFromBuffer(file.buffer, {
+                folder: "serene_chat/messages",
+                transformation: [
+                    { quality: "auto", fetch_format: "auto" }
+                ],
+            });
+
+            imgUrl = result.secure_url;
+        }
+
+        if (!content.trim() && !imgUrl) {
+            return res.status(400).json({ message: "Message content or image is required" })
         }
 
         if (!conversation) {
@@ -83,7 +113,8 @@ export const sendGroupMessage = async (req, res) => {
         const message = await Message.create({
             conversationId: conversation._id,
             senderId,
-            content
+            content: content.trim(),
+            imgUrl
         });
 
         updateConversationAfterCreateMessage(conversation, message, senderId);

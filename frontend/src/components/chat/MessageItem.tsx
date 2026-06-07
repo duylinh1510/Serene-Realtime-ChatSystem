@@ -68,15 +68,26 @@ const MessageItem = ({
         >
           <Card
             className={cn(
-              "max-w-full px-3.5 py-2 text-sm shadow-sm ring-0",
+              "max-w-full px-3.5 py-2 text-sm shadow-sm ring-0 space-y-2 overflow-hidden",
               message.isOwn
                 ? "rounded-2xl rounded-br-md border-0 bg-info text-info-foreground"
                 : "rounded-2xl rounded-bl-md bg-chat-bubble-received text-chat-bubble-received-fg",
             )}
           >
-            <p className="whitespace-pre-wrap break-words leading-relaxed">
-              {message.content}
-            </p>
+            {message.imgUrl && (
+              <img
+                src={message.imgUrl}
+                alt="Tin nhắn hình ảnh"
+                loading="lazy"
+                className="max-h-80 max-w-full rounded-xl object-cover"
+              />
+            )}
+
+            {message.content && (
+              <p className="whitespace-pre-wrap break-words leading-relaxed">
+                {message.content}
+              </p>
+            )}
           </Card>
 
           {/* seen/delivered */}
