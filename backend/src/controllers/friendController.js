@@ -2,6 +2,7 @@ import Friend from '../models/Friend.js';
 import User from '../models/User.js';
 import FriendRequest from '../models/FriendRequest.js';
 import mongoose from 'mongoose';
+import { io } from '../socket/index.js';
 
 
 export const sendFriendRequest = async (req, res) => {
@@ -49,6 +50,14 @@ export const sendFriendRequest = async (req, res) => {
             from,
             to,
             message
+        });
+
+        //phát realtime event khi có lời mời mới.
+        await request.populate("from", "_id username displayName avatarUrl");
+        await request.populate("to", "_id username displayName avatarUrl");
+
+        io.to(to.toString()).emit("friend-request:new", {
+            request,
         });
 
         return res.status(201).json({ message: "Friend request sent successfully", request })

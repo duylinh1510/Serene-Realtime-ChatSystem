@@ -3,6 +3,8 @@ import { io, type Socket } from "socket.io-client";
 import { useAuthStore } from "./useAuthStore";
 import type { SocketState } from "@/types/store";
 import { useChatStore } from "./useChatStore";
+import { useFriendStore } from "./useFriendStore";
+import { toast } from "sonner";
 
 const baseURL = import.meta.env.VITE_SOCKET_URL;
 
@@ -33,6 +35,15 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     //online users
     socket.on("online-users", (usersIds) => {
       set({ onlineUsers: usersIds });
+    });
+
+    //friend request
+    socket.on("friend-request:new", ({ request }) => {
+      useFriendStore.getState().addReceivedRequest(request);
+
+      const senderName = request.from?.displayName ?? "Ai đó";
+
+      toast.info(`${senderName} đã gửi lời mời kết bạn`);
     });
 
     //typing

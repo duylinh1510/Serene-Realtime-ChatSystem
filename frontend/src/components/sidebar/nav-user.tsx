@@ -22,11 +22,13 @@ import Logout from "../auth/logout";
 import { useState } from "react";
 import FriendRequestDialog from "../FriendRequest/FriendRequestDialog";
 import ProfileDialog from "../profile/ProfileDialog";
+import { useFriendStore } from "@/stores/useFriendStore";
 
 export function NavUser({ user }: { user: User }) {
   const { isMobile } = useSidebar();
   const [friendRequestOpen, setFriendRequestOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const { receivedList } = useFriendStore();
 
   return (
     <>
@@ -81,7 +83,12 @@ export function NavUser({ user }: { user: User }) {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setFriendRequestOpen(true)}>
                   <Bell className="text-muted-foreground dark:group-focus:!text-accent-foreground" />
-                  Thông báo
+                  <span className="flex-1">Thông báo</span>
+                  {receivedList.length > 0 && (
+                    <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+                      {receivedList.length}
+                    </span>
+                  )}
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
