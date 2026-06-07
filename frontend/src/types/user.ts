@@ -35,3 +35,11 @@ export interface FriendRequest {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface UpdateProfilePayload {
+  displayName: string;
+  username: string;
+  email: string;
+  bio?: string;
+  phone?: string;
+}
