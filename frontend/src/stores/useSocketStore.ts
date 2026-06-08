@@ -134,6 +134,11 @@ export const useSocketStore = create<SocketState>((set, get) => ({
       socket.emit("join-conversation", conversation._id);
     });
 
+    //rename group
+    socket.on("group:updated", (conversation) => {
+      useChatStore.getState().updateConversation(conversation);
+    });
+
     socket.on("connect_error", (error) => {
       console.error("Socket connect error:", error.message);
     });

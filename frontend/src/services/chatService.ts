@@ -83,4 +83,12 @@ export const chatService = {
     const res = await api.post("/conversations", { type, name, memberIds });
     return res.data.conversation;
   },
+
+  async renameGroup(conversationId: string, name: string) {
+    const res = await api.patch(`/conversations/${conversationId}/group/name`, {
+      name,
+    });
+
+    return res.data.conversation;
+  },
 };

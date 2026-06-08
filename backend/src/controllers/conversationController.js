@@ -1,6 +1,7 @@
 import Conversation from "../models/Conversation.js"
 import Message from "../models/Message.js"
 import { io } from "../socket/index.js";
+import mongoose from "mongoose";
 
 export const createConversation = async (req, res) => {
     try {
@@ -222,5 +223,52 @@ export const markAsSeen = async (req, res) => {
     } catch (error) {
         console.error("Failed to mark as seen", error);
         return res.status(500).json({ message: "Internal server error" })
+    }
+}
+
+export const renameGroup = async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const { name } = req.body;
+        const userId = req.user._id.toString();
+
+        if (!mongoose.isValidObjectId(conversationId)) {
+            return res.status(400).json({ message: "Invalid conversation ID" });
+        }
+
+        if (!name || !name.trim()) {
+            return res.status(400).json({ message: "Group name cannot be empty" });
+        }
+
+        const conversation = await Conversation.findById(conversationId);
+
+        if (!conversation) {
+            return res.status(404).json({ message: "Conversation not found" });
+        }
+
+        if (conversation.type !== "group") {
+            return res.status(400).json({ message: "Only group conversations can be renamed" });
+        }
+
+        if (conversation.group.createdBy.toString() !== userId) {
+            return res.status(403).json({ message: "Only group creator can rename this group" });
+        }
+
+        conversation.group.name = name.trim();
+
+        await conversation.save();
+
+        const updatedConversation = {
+            _id: conversation._id,
+            group: conversation.group,
+            updatedAt: conversation.updatedAt
+        };
+
+        io.to(conversationId).emit("group:updated", updatedConversation);
+
+        return res.status(200).json({ conversation: updatedConversation });
+    } catch (error) {
+        console.error("Failed to rename group", error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 }
