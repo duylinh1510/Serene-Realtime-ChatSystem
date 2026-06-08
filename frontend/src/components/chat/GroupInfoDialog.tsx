@@ -2,11 +2,16 @@ import type { Conversation } from "@/types/chat";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import UserAvatar from "./UserAvatar";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useChatStore } from "@/stores/useChatStore";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { useFriendStore } from "@/stores/useFriendStore";
+import type { Friend } from "@/types/user";
+import InviteSuggestionList from "../NewGroupChat/InviteSuggestionList";
+import SelectedUserList from "../NewGroupChat/SelectedUserList";
+import { toast } from "sonner";
 
 interface GroupInfoDialogProps {
   open: boolean;
@@ -24,7 +29,14 @@ const GroupInfoDialog = ({
   );
 
   const { user } = useAuthStore();
-  const { renameGroup } = useChatStore();
+  const { renameGroup, addGroupMembers } = useChatStore();
+  const { friends, getFriends } = useFriendStore();
+
+  useEffect(() => {
+    if (!open) return;
+
+    void getFriends();
+  }, [open, getFriends]);
 
   const isCreator = user?._id === convo.group?.createdBy;
   const [editing, setEditing] = useState(false);
@@ -35,6 +47,61 @@ const GroupInfoDialog = ({
 
     await renameGroup(convo._id, groupName.trim());
     setEditing(false);
+  };
+
+  //state thêm thành viên
+  const [memberSearch, setMemberSearch] = useState("");
+  const [selectedUsers, setSelectedUsers] = useState<Friend[]>([]);
+  const [addingMembers, setAddingMembers] = useState(false);
+
+  const handleSelectFriend = (friend: Friend) => {
+    setSelectedUsers((prev) => [...prev, friend]);
+    setMemberSearch("");
+  };
+
+  const handleRemoveSelectedFriend = (friend: Friend) => {
+    setSelectedUsers((prev) => prev.filter((u) => u._id !== friend._id));
+  };
+
+  const currentMemberIds = convo.participants.map((p) => p._id);
+
+  const normalizedSearch = memberSearch.trim().toLowerCase();
+
+  const filteredFriends = friends.filter((friend) => {
+    const displayName = friend.displayName.toLowerCase();
+    const username = friend.username.toLowerCase();
+
+    return (
+      (displayName.includes(normalizedSearch) ||
+        username.includes(normalizedSearch)) &&
+      !currentMemberIds.includes(friend._id) &&
+      !selectedUsers.some((u) => u._id === friend._id)
+    );
+  });
+
+  const handleAddMembers = async () => {
+    if (selectedUsers.length === 0) {
+      toast.warning("Chọn ít nhất một thành viên để thêm vào nhóm");
+      return;
+    }
+
+    try {
+      setAddingMembers(true);
+
+      await addGroupMembers(
+        convo._id,
+        selectedUsers.map((user) => user._id),
+      );
+
+      setSelectedUsers([]);
+      setMemberSearch("");
+      toast.success("Đã thêm thành viên vào nhóm");
+    } catch (error) {
+      console.error("Error while adding group members", error);
+      toast.error("Không thể thêm thành viên vào nhóm");
+    } finally {
+      setAddingMembers(false);
+    }
   };
 
   return (
@@ -76,7 +143,7 @@ const GroupInfoDialog = ({
             </div>
           </div>
 
-          <div className="rounded-md border border-border/60 p-3">
+          <div className="rounded-md border border-border/60 p-3 space-y-3">
             <p className="mb-2 text-sm font-medium">Người tạo nhóm</p>
             <div className="flex items-center gap-3">
               <UserAvatar
@@ -88,6 +155,35 @@ const GroupInfoDialog = ({
                 {creator?.displayName ?? "Không xác định"}
               </span>
             </div>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">Thêm thành viên</p>
+              <Button
+                type="button"
+                size="sm"
+                disabled={addingMembers || selectedUsers.length === 0}
+                onClick={handleAddMembers}
+              >
+                {addingMembers ? "Đang thêm..." : "Thêm"}
+              </Button>
+            </div>
+
+            <Input
+              placeholder="Tìm bạn bè để thêm"
+              value={memberSearch}
+              onChange={(e) => setMemberSearch(e.target.value)}
+            />
+
+            {memberSearch && filteredFriends.length > 0 && (
+              <InviteSuggestionList
+                filteredFriends={filteredFriends}
+                onSelect={handleSelectFriend}
+              />
+            )}
+
+            <SelectedUserList
+              invitedUsers={selectedUsers}
+              onRemove={handleRemoveSelectedFriend}
+            />
           </div>
 
           <div>

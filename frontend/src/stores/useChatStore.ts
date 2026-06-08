@@ -248,6 +248,18 @@ export const useChatStore = create<ChatState>()(
           console.error("Error while renaming group", error);
         }
       },
+      addGroupMembers: async (conversationId, memberIds) => {
+        try {
+          const conversation = await chatService.addGroupMembers(
+            conversationId,
+            memberIds,
+          );
+
+          get().updateConversation(conversation);
+        } catch (error) {
+          console.error("Error while adding group members", error);
+        }
+      },
     }),
     {
       name: "chat-storage",

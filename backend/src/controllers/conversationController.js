@@ -2,6 +2,15 @@ import Conversation from "../models/Conversation.js"
 import Message from "../models/Message.js"
 import { io } from "../socket/index.js";
 import mongoose from "mongoose";
+import Friend from "../models/Friend.js";
+
+//helper kiểm tra cặp bạn bè
+const getFriendPair = (a, b) => {
+    const userA = a.toString();
+    const userB = b.toString();
+
+    return userA < userB ? [userA, userB] : [userB, userA];
+}
 
 export const createConversation = async (req, res) => {
     try {
@@ -269,6 +278,121 @@ export const renameGroup = async (req, res) => {
         return res.status(200).json({ conversation: updatedConversation });
     } catch (error) {
         console.error("Failed to rename group", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+export const addGroupMembers = async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const { memberIds } = req.body;
+        const userId = req.user._id.toString();
+
+        if (!mongoose.isValidObjectId(conversationId)) {
+            return res.status(400).json({ message: "Invalid conversation ID" });
+        }
+
+        if (!Array.isArray(memberIds) || memberIds.length === 0) {
+            return res.status(400).json({ message: "memberIds must be a non-empty array" });
+        }
+
+        const invalidMemberId = memberIds.find((id) => !mongoose.isValidObjectId(id));
+
+        if (invalidMemberId) {
+            return res.status(400).json({ message: "Invalid member ID" });
+        }
+
+        const conversation = await Conversation.findById(conversationId);
+
+        if (!conversation) {
+            return res.status(404).json({ message: "Conversation not found" });
+        }
+
+        if (conversation.type !== "group") {
+            return res.status(400).json({ message: "Only group conversation can add members" });
+        }
+
+        const isCurrentUserMember = conversation.participants.some(
+            (participant) => participant.userId.toString() === userId
+        );
+
+        if (!isCurrentUserMember) {
+            return res.status(403).json({ message: "You are not a member of this group" });
+        }
+
+        const currentMemberIds = conversation.participants.map((participant) => participant.userId.toString());
+
+        //lấy ra id riêng biệt của tất cả thành viên trong nhóm
+        const uniqueMemberIds = [...new Set(memberIds.map((id) => id.toString()))];
+
+        // Loại bỏ user đã có trong nhóm.
+        const newMemberIds = uniqueMemberIds.filter(
+            (memberId) => !currentMemberIds.includes(memberId)
+        )
+
+        if (newMemberIds.length === 0) {
+            return res.status(400).json({ message: "All selected users are already in this group" });
+        }
+
+        const friendChecks = await Promise.all(
+            newMemberIds.map(async (memberId) => {
+                const [userA, userB] = getFriendPair(userId, memberId);
+                const isFriend = await Friend.exists({ userA, userB });
+
+                return isFriend ? null : memberId;
+            })
+        )
+
+        //lấy ra mảng các thành viên không phải là bạn của userId đang thêm thành viên hiện tại
+        const notFriends = friendChecks.filter(Boolean);
+
+        if (notFriends.length > 0) {
+            return res.status(403).json({
+                message: "You can only add your friend to the group",
+                notFriends
+            });
+        }
+
+
+        //thêm các thành viên mới làm participants trong group đó
+        newMemberIds.forEach((memberId) => {
+            conversation.participants.push({
+                userId: memberId,
+                joinedAt: new Date(),
+            });
+
+            conversation.unreadCounts.set(memberId, 0);
+        })
+
+        await conversation.save();
+
+        await conversation.populate([
+            { path: "participants.userId", select: "displayName avatarUrl" },
+            { path: "seenBy", select: "displayName avatarUrl" },
+            { path: "lastMessage.senderId", select: "displayName avatarUrl" },
+        ]);
+
+        const participants = conversation.participants.map((participant) => ({
+            _id: participant.userId?._id,
+            displayName: participant.userId?.displayName,
+            avatarUrl: participant.userId?.avatarUrl ?? null,
+            joinedAt: participant.joinedAt
+        }));
+
+        const formatted = {
+            ...conversation.toObject(),
+            participants
+        };
+
+        io.to(conversationId).emit("group:updated", formatted);
+
+        newMemberIds.forEach((memberId) => {
+            io.to(memberId).emit("new-group", formatted);
+        });
+
+        return res.status(200).json({ conversation: formatted });
+    } catch (error) {
+        console.error("Failed to add group members", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 }

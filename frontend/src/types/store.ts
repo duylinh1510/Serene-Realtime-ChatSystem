@@ -75,6 +75,10 @@ export interface ChatState {
     memberIds: string[],
   ) => Promise<void>;
   renameGroup: (conversationId: string, name: string) => Promise<void>;
+  addGroupMembers: (
+    conversationId: string,
+    memberIds: string[],
+  ) => Promise<void>;
 }
 
 export interface TypingUser {

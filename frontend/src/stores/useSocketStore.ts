@@ -134,7 +134,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
       socket.emit("join-conversation", conversation._id);
     });
 
-    //rename group
+    //update group
     socket.on("group:updated", (conversation) => {
       useChatStore.getState().updateConversation(conversation);
     });

@@ -91,4 +91,12 @@ export const chatService = {
 
     return res.data.conversation;
   },
+
+  async addGroupMembers(conversationId: string, memberIds: string[]) {
+    const res = await api.patch(
+      `/conversations/${conversationId}/group/members`,
+      { memberIds },
+    );
+    return res.data.conversation;
+  },
 };

@@ -24,7 +24,12 @@ const InviteSuggestionList = ({
             name={friend.displayName}
             avatarUrl={friend.avatarUrl}
           />
-          <span className="font-medium">{friend.displayName}</span>
+          <div className="min-w-0">
+            <p className="truncate font-medium">{friend.displayName}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              @{friend.username}
+            </p>
+          </div>
         </div>
       ))}
     </div>
